@@ -56,7 +56,7 @@ describe("auth()", () => {
     const [first] = fetch.mock.calls;
     const [, init] = first ?? [];
     expect(new Headers(init?.headers).get("Authorization")).toBe(
-      "Bearer custom device token",
+      "Bearer custom device token"
     );
   });
 
@@ -76,7 +76,7 @@ describe("remarkable", () => {
       const [first] = fetch.mock.calls;
       const [, init] = first ?? [];
       expect(new Headers(init?.headers).get("Authorization")).toBe(
-        "Bearer custom device token",
+        "Bearer custom device token"
       );
     });
 
@@ -98,9 +98,9 @@ describe("remarkable", () => {
     test("throws when cache is invalid", () => {
       mockFetch();
 
-      expect(() =>
-        session("token", { cache: "42" }),
-      ).toThrow("cache was not a valid cache (json string mapping)");
+      expect(() => session("token", { cache: "42" })).toThrow(
+        "cache was not a valid cache (json string mapping)"
+      );
     });
   });
 
@@ -209,7 +209,7 @@ fake_template_hash:0:${docId}.template:0:1
       jsonResponse(metadata),
       jsonResponse(content),
       jsonResponse(templateMetadata),
-      jsonResponse(templateContent),
+      jsonResponse(templateContent)
     );
 
     const api = await remarkable("");
@@ -231,7 +231,6 @@ hash:0:doc.pdf:0:1
       parent: "",
       type: "DocumentType",
       pinned: false,
-      // repro for previous validation error
       lastOpenedPage: -1,
     };
     mockFetch(emptyResponse(), textResponse(file), jsonResponse(metadata));
@@ -253,7 +252,7 @@ hash2:80000000:other:0:2
         generation: 0,
         schemaVersion: 3,
       }),
-      textResponse(file),
+      textResponse(file)
     );
 
     const api = await remarkable("");
@@ -343,7 +342,7 @@ hash:0:doc.epub:0:1
       mockFetch(
         emptyResponse(),
         textResponse(file),
-        jsonResponse({ foo: "bar" }),
+        jsonResponse({ foo: "bar" })
       );
 
       const api = await remarkable("");
@@ -444,7 +443,7 @@ ${epubHash}:0:doc.epub:0:1
       textResponse(file),
       jsonResponse(content),
       jsonResponse(metadata),
-      bytesResponse(epub),
+      bytesResponse(epub)
     );
 
     const api = await remarkable("");
@@ -460,7 +459,7 @@ ${epubHash}:0:doc.epub:0:1
       jsonResponse({
         hash: repHash("1"),
         docID: "fake pdf id",
-      }),
+      })
     );
 
     const api = await remarkable("");
@@ -491,7 +490,7 @@ ${epubHash}:0:doc.epub:0:1
       jsonResponse({
         hash: repHash("1"),
         generation: 1,
-      }), // root hash
+      }) // root hash
     );
 
     const api = await remarkable("");
@@ -509,7 +508,7 @@ ${epubHash}:0:doc.epub:0:1
       jsonResponse({
         hash: repHash("1"),
         docID: "fake epub id",
-      }),
+      })
     );
 
     const api = await remarkable("");
@@ -540,7 +539,7 @@ ${epubHash}:0:doc.epub:0:1
       jsonResponse({
         hash: repHash("1"),
         generation: 1,
-      }), // root hash
+      }) // root hash
     );
 
     const api = await remarkable("");
@@ -566,7 +565,7 @@ ${epubHash}:0:doc.epub:0:1
       jsonResponse({
         hash: repHash("1"),
         generation: 1,
-      }), // root hash
+      }) // root hash
     );
 
     const api = await remarkable("");
@@ -595,7 +594,9 @@ ${epubHash}:0:doc.epub:0:1
       }), // root hash
       textResponse(`3\n${moveHash}:80000000:fake_id:2:123\n`), // root entries
       textResponse(
-        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash("3")}:0:fake_id.content:0:122\n`,
+        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash(
+          "3"
+        )}:0:fake_id.content:0:122\n`
       ), // item entries
       jsonResponse(oldMeta), // get metadata
       emptyResponse(), // put metadata
@@ -604,7 +605,7 @@ ${epubHash}:0:doc.epub:0:1
       jsonResponse({
         hash: repHash("1"),
         generation: 1,
-      }), // root hash
+      }) // root hash
     );
 
     const api = await remarkable("");
@@ -632,7 +633,9 @@ ${epubHash}:0:doc.epub:0:1
       }), // root hash
       textResponse(`3\n${moveHash}:80000000:fake_id:2:123\n`), // root entries
       textResponse(
-        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash("3")}:0:fake_id.content:0:122\n`,
+        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash(
+          "3"
+        )}:0:fake_id.content:0:122\n`
       ), // item entries
       jsonResponse(oldMeta), // get metadata
       emptyResponse(), // put metadata
@@ -641,7 +644,7 @@ ${epubHash}:0:doc.epub:0:1
       jsonResponse({
         hash: repHash("1"),
         generation: 1,
-      }), // root hash
+      }) // root hash
     );
 
     const api = await remarkable("");
@@ -658,12 +661,12 @@ ${epubHash}:0:doc.epub:0:1
         generation: 0,
         schemaVersion: 3,
       }), // root hash
-      textResponse("3\n"), // root entries
+      textResponse("3\n") // root entries
     );
 
     const api = await remarkable("");
     expect(api.move(repHash("23"), "trash")).rejects.toThrow(
-      "not found in the root hash",
+      "not found in the root hash"
     );
   });
 
@@ -686,7 +689,9 @@ ${epubHash}:0:doc.epub:0:1
       }), // root hash
       textResponse(`3\n${deleteHash}:80000000:fake_id:2:123\n`), // root entries
       textResponse(
-        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash("3")}:0:fake_id.content:0:122\n`,
+        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash(
+          "3"
+        )}:0:fake_id.content:0:122\n`
       ), // item entries
       jsonResponse(oldMeta), // get metadata
       emptyResponse(), // put metadata
@@ -695,7 +700,7 @@ ${epubHash}:0:doc.epub:0:1
       jsonResponse({
         hash: repHash("1"),
         generation: 1,
-      }), // root hash
+      }) // root hash
     );
 
     const api = await remarkable("");
@@ -723,7 +728,9 @@ ${epubHash}:0:doc.epub:0:1
       }), // root hash
       textResponse(`3\n${moveHash}:80000000:fake_id:2:123\n`), // root entries
       textResponse(
-        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash("3")}:0:fake_id.content:0:122\n`,
+        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash(
+          "3"
+        )}:0:fake_id.content:0:122\n`
       ), // item entries
       jsonResponse(oldMeta), // get metadata
       emptyResponse(), // put metadata
@@ -732,7 +739,7 @@ ${epubHash}:0:doc.epub:0:1
       jsonResponse({
         hash: repHash("1"),
         generation: 1,
-      }), // root hash
+      }) // root hash
     );
 
     const api = await remarkable("");
@@ -760,7 +767,9 @@ ${epubHash}:0:doc.epub:0:1
       }), // root hash
       textResponse(`3\n${moveHash}:80000000:fake_id:2:123\n`), // root entries
       textResponse(
-        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash("3")}:0:fake_id.content:0:122\n`,
+        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash(
+          "3"
+        )}:0:fake_id.content:0:122\n`
       ), // item entries
       jsonResponse(oldMeta), // get metadata
       emptyResponse(), // put metadata
@@ -769,7 +778,7 @@ ${epubHash}:0:doc.epub:0:1
       jsonResponse({
         hash: repHash("1"),
         generation: 1,
-      }), // root hash
+      }) // root hash
     );
 
     const api = await remarkable("");
@@ -797,7 +806,9 @@ ${epubHash}:0:doc.epub:0:1
       }), // root hash
       textResponse(`3\n${moveHash}:80000000:fake_id:2:123\n`), // root entries
       textResponse(
-        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash("3")}:0:fake_id.content:0:122\n`,
+        `3\n${repHash("2")}:0:fake_id.metadata:0:1\n${repHash(
+          "3"
+        )}:0:fake_id.content:0:122\n`
       ), // item entries
       jsonResponse(oldMeta), // get metadata
       emptyResponse(), // put metadata
@@ -806,7 +817,7 @@ ${epubHash}:0:doc.epub:0:1
       jsonResponse({
         hash: repHash("1"),
         generation: 1,
-      }), // root hash
+      }) // root hash
     );
 
     const api = await remarkable("");
@@ -832,7 +843,7 @@ ${fileHash}:0:document.content:0:1
         schemaVersion: 3,
       }),
       textResponse(file),
-      textResponse(ent),
+      textResponse(ent)
     );
 
     const api = await remarkable("");
@@ -851,7 +862,7 @@ hash2:80000000:other:0:2
         generation: 0,
         schemaVersion: 3,
       }),
-      textResponse(file),
+      textResponse(file)
     );
 
     const api = await remarkable("");
@@ -867,19 +878,19 @@ hash2:80000000:other:0:2
 
     const api = await remarkable("");
     expect(api.putFolder("test", { parent: "invalid" })).rejects.toThrow(
-      "parent must be a valid document id",
+      "parent must be a valid document id"
     );
   });
 
   test("generation fail", async () => {
     mockFetch(
       emptyResponse(),
-      textResponse('{"message":"precondition failed"}\n', { status: 400 }),
+      textResponse('{"message":"precondition failed"}\n', { status: 400 })
     );
 
     const api = await remarkable("");
     expect(api.raw.putRootHash(repHash("ab01"), 0)).rejects.toThrow(
-      "root generation was stale; try put again",
+      "root generation was stale; try put again"
     );
   });
 
@@ -893,7 +904,7 @@ hash2:80000000:other:0:2
   test("response fail", async () => {
     mockFetch(
       emptyResponse(),
-      textResponse("fail", { status: 400, statusText: "bad request" }),
+      textResponse("fail", { status: 400, statusText: "bad request" })
     );
 
     const api = await remarkable("");
