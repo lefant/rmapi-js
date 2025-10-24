@@ -1063,6 +1063,22 @@ export class RawRemarkable implements RawRemarkableApi {
 
     // jtd can't verify non-discriminated unions, in this case, we have fileType
     // defined or not. As a result, we try each, and concatenate the errors at the end
+    // Normalize unopened document fields (documents uploaded but never opened)
+    if (loaded && typeof loaded === 'object' && 'fileType' in loaded) {
+      // Transform null pages to empty array (unopened documents have pages: null)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+      if ((loaded as any).pages === null) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+        (loaded as any).pages = [];
+      }
+      // Transform empty textAlignment to default (unopened documents have textAlignment: "")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+      if ((loaded as any).textAlignment === "") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+        (loaded as any).textAlignment = "justify";
+      }
+    }
+
     const errors: string[] = [];
     for (const [name, valid] of [
       ["collection", collectionContent],
