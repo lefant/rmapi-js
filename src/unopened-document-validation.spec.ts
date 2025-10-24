@@ -14,14 +14,13 @@ function repHash(hash: string): string {
 
 describe("Unopened document validation", () => {
   /**
-   * Minimal unopened document structure that affects ALL file types
-   * (EPUB, PDF, notebook) on both V3 and V4 accounts.
+   * Minimal unopened document structure
    */
   const minimalUnopenedDocument = {
     coverPageNumber: -1,
     documentMetadata: {},
     extraMetadata: {},
-    fileType: "pdf", // Any file type exhibits this pattern
+    fileType: "pdf",
     fontName: "",
     lineHeight: -1,
     orientation: "portrait",
@@ -47,8 +46,6 @@ hash:0:doc.pdf:0:1
     );
 
     const api = await remarkable("");
-
-    // After fix: This should succeed
     const content = (await api.getContent(repHash("0"))) as DocumentContent;
     expect(content.fileType).toBe("pdf");
     expect(content.pageCount).toBe(0);
@@ -122,7 +119,7 @@ hash:0:doc.pdf:0:1
 
     const api = await remarkable("");
 
-    // After fix: Should validate as document (not try collection first)
+    // Should validate as document (not try collection first)
     // Error messages should be clear about document validation only
     const content = (await api.getContent(repHash("0"))) as DocumentContent;
     expect(content.fileType).toBe("pdf");
