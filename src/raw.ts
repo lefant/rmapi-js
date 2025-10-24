@@ -1061,8 +1061,6 @@ export class RawRemarkable implements RawRemarkableApi {
     const raw = await this.getText(hash);
     const loaded = JSON.parse(raw) as unknown;
 
-    // jtd can't verify non-discriminated unions, in this case, we have fileType
-    // defined or not. As a result, we try each, and concatenate the errors at the end
     // Normalize unopened document fields (documents uploaded but never opened)
     if (loaded && typeof loaded === 'object' && 'fileType' in loaded) {
       // Transform null pages to empty array (unopened documents have pages: null)
@@ -1079,11 +1077,19 @@ export class RawRemarkable implements RawRemarkableApi {
       }
     }
 
+    // Use fileType as discriminator (presence indicates document type, not collection/template)
+    // This is documented at raw.ts:315-321 where CollectionContent specifies fileType?: undefined
+    if (loaded && typeof loaded === 'object' && 'fileType' in loaded) {
+      // Has fileType = document (not collection, not template)
+      if (documentContent.guardAssert(loaded)) return loaded;
+      throw new Error('Content has fileType field but failed document validation');
+    }
+
+    // No fileType = collection or template
     const errors: string[] = [];
     for (const [name, valid] of [
       ["collection", collectionContent],
       ["template", templateContent],
-      ["document", documentContent],
     ] as const) {
       try {
         if (valid.guardAssert(loaded)) return loaded;
@@ -1093,7 +1099,7 @@ export class RawRemarkable implements RawRemarkableApi {
       }
     }
     const joined = errors.join("\n\nor\n\n");
-    throw new Error(`invalid content: ${joined}`);
+    throw new Error(`invalid content (no fileType, tried collection/template): ${joined}`);
   }
 
   async getMetadata(hash: string): Promise<Metadata> {
