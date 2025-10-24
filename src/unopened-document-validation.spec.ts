@@ -27,7 +27,7 @@ describe("Unopened document validation", () => {
     orientation: "portrait",
     pageCount: 0,
     sizeInBytes: "",
-    textAlignment: "", // ❌ PROBLEM 1: empty string not in enum("justify", "left")
+    textAlignment: "", // ❌ PROBLEM 1: empty string not in ("justify", "left")
     textScale: 1,
     pages: null, // ❌ PROBLEM 2: null not accepted (expects array or undefined)
   };
@@ -43,13 +43,13 @@ hash:0:doc.pdf:0:1
     mockFetch(
       emptyResponse(),
       textResponse(file),
-      jsonResponse(minimalUnopenedDocument),
+      jsonResponse(minimalUnopenedDocument)
     );
 
     const api = await remarkable("");
 
     // After fix: This should succeed
-    const content = await api.getContent(repHash("0")) as DocumentContent;
+    const content = (await api.getContent(repHash("0"))) as DocumentContent;
     expect(content.fileType).toBe("pdf");
     expect(content.pageCount).toBe(0);
   });
@@ -70,12 +70,12 @@ hash:0:doc.pdf:0:1
     mockFetch(
       emptyResponse(),
       textResponse(file),
-      jsonResponse(docWithEmptyTextAlignment),
+      jsonResponse(docWithEmptyTextAlignment)
     );
 
     const api = await remarkable("");
 
-    const content = await api.getContent(repHash("0")) as DocumentContent;
+    const content = (await api.getContent(repHash("0"))) as DocumentContent;
     // Empty textAlignment normalized to "justify"
     expect(content.textAlignment).toBe("justify");
   });
@@ -96,12 +96,12 @@ hash:0:doc.pdf:0:1
     mockFetch(
       emptyResponse(),
       textResponse(file),
-      jsonResponse(docWithNullPages),
+      jsonResponse(docWithNullPages)
     );
 
     const api = await remarkable("");
 
-    const content = await api.getContent(repHash("0")) as DocumentContent;
+    const content = (await api.getContent(repHash("0"))) as DocumentContent;
     // null pages normalized to empty array
     expect(content.pages).toEqual([]);
   });
@@ -117,14 +117,14 @@ hash:0:doc.pdf:0:1
     mockFetch(
       emptyResponse(),
       textResponse(file),
-      jsonResponse(minimalUnopenedDocument),
+      jsonResponse(minimalUnopenedDocument)
     );
 
     const api = await remarkable("");
 
     // After fix: Should validate as document (not try collection first)
     // Error messages should be clear about document validation only
-    const content = await api.getContent(repHash("0")) as DocumentContent;
+    const content = (await api.getContent(repHash("0"))) as DocumentContent;
     expect(content.fileType).toBe("pdf");
   });
 });
