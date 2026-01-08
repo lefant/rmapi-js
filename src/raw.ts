@@ -1071,6 +1071,16 @@ export class RawRemarkable implements RawRemarkableApi {
     const raw = await this.getText(hash);
     const loaded = JSON.parse(raw) as unknown;
 
+    // Normalize fields for documents in special states
+    if (loaded && typeof loaded === 'object' && 'fileType' in loaded) {
+      // Transform null cPages.uuids to empty array (certain document states)
+      if ('cPages' in loaded && loaded.cPages && typeof loaded.cPages === 'object') {
+        if ('uuids' in loaded.cPages && loaded.cPages.uuids === null) {
+          (loaded.cPages as any).uuids = [];
+        }
+      }
+    }
+
     // jtd can't verify non-discriminated unions, in this case, we have fileType
     // defined or not. As a result, we try each, and concatenate the errors at the end
     const errors: string[] = [];
