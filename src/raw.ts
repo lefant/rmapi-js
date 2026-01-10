@@ -276,7 +276,7 @@ export interface CPages {
   /** [speculative] information about individual pages */
   pages: CPagePage[];
   /** [unknown] */
-  uuids: CPageUUID[];
+  uuids: CPageUUID[] | null;
 }
 
 const cPages = properties(
@@ -298,14 +298,16 @@ const cPages = properties(
       true,
     ),
     pages: elements(cPagePage),
-    uuids: elements(
-      properties(
-        {
-          first: string(),
-          second: uint32(),
-        },
-        undefined,
-        true,
+    uuids: nullable(
+      elements(
+        properties(
+          {
+            first: string(),
+            second: uint32(),
+          },
+          undefined,
+          true,
+        ),
       ),
     ),
   },
