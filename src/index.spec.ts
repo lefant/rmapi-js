@@ -1,12 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
-  Content,
-  DocumentContent,
-  Entry,
-  Metadata,
+  auth,
+  type Content,
+  type DocumentContent,
+  type Entry,
+  type Metadata,
   register,
   remarkable,
-  TemplateContent,
+  session,
+  type TemplateContent,
 } from ".";
 import {
   bytesResponse,
@@ -44,10 +46,30 @@ describe("register()", () => {
   });
 });
 
+describe("auth()", () => {
+  test("success", async () => {
+    const fetch = mockFetch(textResponse("custom session token"));
+
+    const token = await auth("custom device token");
+    expect(token).toBe("custom session token");
+    expect(fetch.mock.calls).toHaveLength(1);
+    const [first] = fetch.mock.calls;
+    const [, init] = first ?? [];
+    expect(new Headers(init?.headers).get("Authorization")).toBe(
+      "Bearer custom device token",
+    );
+  });
+
+  test("error", () => {
+    mockFetch(emptyResponse({ status: 400 }));
+    expect(auth("")).rejects.toThrow("couldn't fetch auth token");
+  });
+});
+
 describe("remarkable", () => {
   describe("remarkable()", () => {
     test("success", async () => {
-      const fetch = mockFetch(textResponse("custom user token"));
+      const fetch = mockFetch(textResponse("custom session token"));
 
       await remarkable("custom device token");
       expect(fetch.mock.calls).toHaveLength(1);
@@ -61,6 +83,24 @@ describe("remarkable", () => {
     test("error", () => {
       mockFetch(emptyResponse({ status: 400 }));
       expect(remarkable("")).rejects.toThrow("couldn't fetch auth token");
+    });
+  });
+
+  describe("session()", () => {
+    test("uses provided token and skips exchange", () => {
+      const fetch = mockFetch();
+
+      const api = session("cached session token");
+      expect(fetch.mock.calls).toHaveLength(0);
+      expect(api.raw).toBeDefined();
+    });
+
+    test("throws when cache is invalid", () => {
+      mockFetch();
+
+      expect(() => session("token", { cache: "42" })).toThrow(
+        "cache was not a valid cache (json string mapping)",
+      );
     });
   });
 
@@ -173,6 +213,29 @@ fake_template_hash:0:${docId}.template:0:1
     expect(loaded).toEqual(expected);
   });
 
+  test("#getMetadata() accepts lastOpenedPage -1", async () => {
+    const realHash = repHash("1");
+    const file = `3
+hash:0:doc.content:0:1
+${realHash}:0:doc.metadata:0:1
+hash:0:doc.epub:0:1
+hash:0:doc.pdf:0:1
+`;
+    const metadata: Metadata = {
+      lastModified: "0",
+      visibleName: "name",
+      parent: "",
+      type: "DocumentType",
+      pinned: false,
+      lastOpenedPage: -1,
+    };
+    mockFetch(emptyResponse(), textResponse(file), jsonResponse(metadata));
+
+    const api = await remarkable("");
+    const meta = await api.getMetadata(repHash("0"));
+    expect(meta).toEqual(metadata);
+  });
+
   test("#listIds()", async () => {
     const file = `3
 hash:80000000:document:0:1
@@ -228,6 +291,34 @@ hash:0:doc.pdf:0:1
 
       const api = await remarkable("");
       const cont = await api.getContent(repHash("0"));
+      expect(cont).toEqual(content);
+    });
+
+    test("handles empty textAlignment and null pages", async () => {
+      const realHash = repHash("1");
+      const file = `3
+${realHash}:0:doc.content:0:1
+hash:0:doc.metadata:0:1
+hash:0:doc.pdf:0:1
+`;
+      const content: DocumentContent = {
+        fileType: "pdf",
+        coverPageNumber: -1,
+        documentMetadata: {},
+        extraMetadata: {},
+        fontName: "",
+        lineHeight: -1,
+        orientation: "portrait",
+        pageCount: 0,
+        pages: null,
+        sizeInBytes: "",
+        textAlignment: "",
+        textScale: 1,
+      };
+      mockFetch(emptyResponse(), textResponse(file), jsonResponse(content));
+
+      const api = await remarkable("");
+      const cont = (await api.getContent(repHash("0"))) as DocumentContent;
       expect(cont).toEqual(content);
     });
 
@@ -400,6 +491,32 @@ ${epubHash}:0:doc.epub:0:1
 
     expect(res.id).toBe("fake pdf id");
     expect(res.hash).toHaveLength(64);
+  });
+
+  /** test that hash matches https://github.com/erikbrinkman/rmapi-js/issues/25#issuecomment-3526745194 */
+  test("#putEntries() v4", async () => {
+    mockFetch(
+      emptyResponse(),
+      emptyResponse(), // put entry
+    );
+    const api = await remarkable("");
+    const [entry, prom] = await api.raw.putEntries(
+      "043eccc1-35a8-467b-a5f3-7196cb1f57d2",
+      [
+        {
+          type: 0,
+          id: "043eccc1-35a8-467b-a5f3-7196cb1f57d2.metadata",
+          hash: "25aaaed381540046fce6defef9aa30faa7c0bcacffe42f5cef99643ae66ddfc1",
+          subfiles: 0,
+          size: 219,
+        },
+      ],
+      4,
+    );
+    expect(entry.hash).toBe(
+      "3c89dd3036f0b335188659d4f7139fcfd906167d99729d638af956906b647646",
+    );
+    await prom;
   });
 
   test("#putPdf()", async () => {

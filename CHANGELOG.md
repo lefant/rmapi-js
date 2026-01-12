@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0] - 2025-12-07
+
+### Added
+
+- support for schema 4!!
+
+## [8.5.0] - 2025-11-01
+
+### Added
+
+- new `auth` helper to exchange device tokens for session tokens
+- `session` synchronous factory for constructing clients from cached session tokens
+
 ## [8.4.0] - 2025-08-17
 
 ### Changed
