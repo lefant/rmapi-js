@@ -17,3 +17,6 @@ test.js
 cache.json
 token.txt
 pnpm-lock.yaml
+
+.rmapi-js-integration.json
+collection-hash-integration-*
