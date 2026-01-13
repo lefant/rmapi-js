@@ -1,13 +1,15 @@
-import { beforeAll, afterAll, describe, test } from "bun:test";
+import { beforeAll, afterAll, describe, test, expect } from "bun:test";
 import {
   auth,
   session,
   type RemarkableApi,
   type RemarkableOptions,
 } from "./src/index";
+import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import stableStringify from "json-stable-stringify";
 import { isUserTokenValid, parseUserTokenExpiration } from "./cloud/jwt-utils";
 
 interface IntegrationConfig {
@@ -283,6 +285,8 @@ describeIf("collection hash integration", () => {
       step: string;
       rootHash: string;
       hashes: Record<string, string | null>;
+      metadataHashes: Record<string, string | null>;
+      contentHashes: Record<string, string | null>;
     }> = [];
 
     const capture = async (
@@ -292,21 +296,52 @@ describeIf("collection hash integration", () => {
       const root = await ctx.captureRoot();
       const items = await ctx.api.listItems(true);
       const hashes: Record<string, string | null> = {};
+      const metadataHashes: Record<string, string | null> = {};
+      const contentHashes: Record<string, string | null> = {};
       for (const { label, id } of ids) {
         if (!id) {
           hashes[label] = null;
+          metadataHashes[label] = null;
+          contentHashes[label] = null;
           continue;
         }
         const entry = items.find((item) => item.id === id);
-        hashes[label] = entry?.hash ?? null;
+        const hash = entry?.hash ?? null;
+        hashes[label] = hash;
+        if (hash && (label === "rootDir" || label === "parent" || label === "child")) {
+          const digests = await fetchDirDigests(ctx.api, hash, ctx, label);
+          metadataHashes[label] = digests?.metadataHash ?? null;
+          contentHashes[label] = digests?.contentHash ?? null;
+        } else {
+          metadataHashes[label] = null;
+          contentHashes[label] = null;
+        }
       }
-      snapshots.push({ step, rootHash: root.hash, hashes });
+      snapshots.push({
+        step,
+        rootHash: root.hash,
+        hashes,
+        metadataHashes,
+        contentHashes,
+      });
       await ctx.log(step, {
         rootHash: shortHash(root.hash),
         entries: Object.fromEntries(
           Object.entries(hashes).map(([label, hash]) => [
             label,
             hash ? shortHash(hash) : null,
+          ]),
+        ),
+        dirMetadata: Object.fromEntries(
+          Object.entries(metadataHashes).map(([label, hash]) => [
+            label,
+            hash ? hash.slice(0, 12) : null,
+          ]),
+        ),
+        dirContent: Object.fromEntries(
+          Object.entries(contentHashes).map(([label, hash]) => [
+            label,
+            hash ? hash.slice(0, 12) : null,
           ]),
         ),
       });
@@ -360,6 +395,7 @@ describeIf("collection hash integration", () => {
         { label: "child", id: child.id },
         { label: "subDoc", id: subDoc.id },
       ]);
+      assertDirectoryDigestsStable(snapshots);
       emitMarkdownReport(snapshots);
     } finally {
       if (process.env["RM_SKIP_RESTORE"] !== "1") {
@@ -375,6 +411,8 @@ function emitMarkdownReport(
     step: string;
     rootHash: string;
     hashes: Record<string, string | null>;
+    metadataHashes: Record<string, string | null>;
+    contentHashes: Record<string, string | null>;
   }>,
 ): void {
   if (snapshots.length === 0) return;
@@ -410,6 +448,12 @@ function emitMarkdownReport(
     "",
     ...rows,
     "",
+    "Directory Metadata/Content Change Report",
+    "",
+    "| Step | Root dir meta | Root dir content | Parent dir meta | Parent dir content | Child dir meta | Child dir content |",
+    "| --- | --- | --- | --- | --- | --- | --- |",
+    ...buildDigestRows(snapshots),
+    "",
   ].join("\n");
   console.log(markdown);
 }
@@ -419,20 +463,128 @@ function formatChange(changed: boolean | null): string {
   return changed ? "changed" : "unchanged";
 }
 
+function assertDirectoryDigestsStable(
+  snapshots: Array<{
+    step: string;
+    metadataHashes: Record<string, string | null>;
+    contentHashes: Record<string, string | null>;
+  }>,
+): void {
+  for (let i = 1; i < snapshots.length; i += 1) {
+    const prev = snapshots[i - 1]!;
+    const current = snapshots[i]!;
+    for (const label of ["rootDir", "parent", "child"] as const) {
+      const prevMeta = prev.metadataHashes[label];
+      const currMeta = current.metadataHashes[label];
+      if (prevMeta && currMeta) {
+        expect(currMeta, `${current.step} ${label} metadata changed`).toBe(
+          prevMeta,
+        );
+      }
+      const prevContent = prev.contentHashes[label];
+      const currContent = current.contentHashes[label];
+      if (prevContent && currContent) {
+        expect(currContent, `${current.step} ${label} content changed`).toBe(
+          prevContent,
+        );
+      }
+    }
+  }
+}
+
+function buildDigestRows(
+  snapshots: Array<{
+    step: string;
+    metadataHashes: Record<string, string | null>;
+    contentHashes: Record<string, string | null>;
+  }>,
+): string[] {
+  const rows: string[] = [];
+  for (let i = 0; i < snapshots.length; i += 1) {
+    const current = snapshots[i]!;
+    const prev = snapshots[i - 1];
+    const rootMetaChanged = compareDigest(prev, current, "rootDir", "meta");
+    const rootContentChanged = compareDigest(prev, current, "rootDir", "content");
+    const parentMetaChanged = compareDigest(prev, current, "parent", "meta");
+    const parentContentChanged = compareDigest(prev, current, "parent", "content");
+    const childMetaChanged = compareDigest(prev, current, "child", "meta");
+    const childContentChanged = compareDigest(prev, current, "child", "content");
+    rows.push(
+      `| ${current.step} | ${formatChange(rootMetaChanged)} | ${formatChange(
+        rootContentChanged,
+      )} | ${formatChange(parentMetaChanged)} | ${formatChange(
+        parentContentChanged,
+      )} | ${formatChange(childMetaChanged)} | ${formatChange(
+        childContentChanged,
+      )} |`,
+    );
+  }
+  return rows;
+}
+
+function compareDigest(
+  prev:
+    | {
+        metadataHashes: Record<string, string | null>;
+        contentHashes: Record<string, string | null>;
+      }
+    | undefined,
+  current: {
+    metadataHashes: Record<string, string | null>;
+    contentHashes: Record<string, string | null>;
+  },
+  label: string,
+  type: "meta" | "content",
+): boolean | null {
+  if (!prev) return null;
+  const prevVal =
+    type === "meta" ? prev.metadataHashes[label] : prev.contentHashes[label];
+  const currVal =
+    type === "meta"
+      ? current.metadataHashes[label]
+      : current.contentHashes[label];
+  if (prevVal === undefined || currVal === undefined) return null;
+  return prevVal !== currVal;
+}
+
+async function fetchDirDigests(
+  api: RemarkableApi,
+  hash: string,
+  ctx: LiveContext,
+  label: string,
+): Promise<{ metadataHash: string; contentHash: string } | null> {
+  try {
+    const [metadata, content] = await Promise.all([
+      api.getMetadata(hash),
+      api.getContent(hash),
+    ]);
+    const metadataHash = digestObject(metadata);
+    const contentHash = digestObject(content);
+    return { metadataHash, contentHash };
+  } catch (error) {
+    await ctx.log("dirDigest.error", {
+      label,
+      error: (error as Error).message,
+    });
+    return null;
+  }
+}
+
+function digestObject(value: unknown): string {
+  const json = stableStringify(value) ?? "";
+  return crypto.createHash("sha256").update(json).digest("hex");
+}
+
 async function ensureRootDirectory(
   api: RemarkableApi,
   name: string,
   ctx: LiveContext,
 ): Promise<{ id: string; hash: string }> {
   await ctx.log("rootDir.lookup.start", { name });
-  const items = await withTimeout(
+  const items = await withRetryWithTimeout(
     "rootDir.lookup.listItems",
     30000,
-    withRetry(
-      "rootDir.lookup.listItems",
-      () => api.listItems(true),
-      ctx,
-    ),
+    () => api.listItems(true),
     ctx,
   );
   await ctx.log("rootDir.lookup.items", { count: items.length });
@@ -452,14 +604,10 @@ async function ensureRootDirectory(
   }
 
   await ctx.log("rootDir.create.start", { name });
-  const created = await withTimeout(
+  const created = await withRetryWithTimeout(
     "rootDir.create.putFolder",
     30000,
-    withRetry(
-      "rootDir.create.putFolder",
-      () => api.putFolder(name),
-      ctx,
-    ),
+    () => api.putFolder(name),
     ctx,
   );
   await ctx.log("rootDir.create", {
@@ -495,6 +643,23 @@ async function withTimeout<T>(
   }
 }
 
+async function withRetryWithTimeout<T>(
+  step: string,
+  timeoutMs: number,
+  fn: () => Promise<T>,
+  ctx: LiveContext,
+  attempts: number = 3,
+  baseDelayMs: number = 500,
+): Promise<T> {
+  return await withRetry(
+    step,
+    () => withTimeout(step, timeoutMs, fn(), ctx),
+    ctx,
+    attempts,
+    baseDelayMs,
+  );
+}
+
 async function withRetry<T>(
   step: string,
   fn: () => Promise<T>,
@@ -515,7 +680,8 @@ async function withRetry<T>(
       const message = err.message || "";
       const isTransient =
         message.includes("socket connection was closed unexpectedly") ||
-        message.includes("ECONNRESET");
+        message.includes("ECONNRESET") ||
+        message.includes("timed out after");
       await ctx.log("retry.error", {
         step,
         attempt,
