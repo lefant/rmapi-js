@@ -638,7 +638,7 @@ const metadata = properties(
     metadatamodified: boolean(),
     modified: boolean(),
     synced: boolean(),
-    version: uint8(),
+    version: uint32(),
   },
   true,
 ) satisfies CompiledSchema<Metadata, unknown>;
