@@ -294,6 +294,28 @@ hash:0:doc.pdf:0:1
       expect(cont).toEqual(content);
     });
 
+    test("CollectionType legacy tags", async () => {
+      const realHash = repHash("1");
+      const file = `3
+${realHash}:0:col.content:0:1
+`;
+      const content = {
+        tags: ["Remarcal", "calendar"],
+      };
+      const expected = {
+        tags: [
+          { name: "Remarcal", timestamp: 0 },
+          { name: "calendar", timestamp: 0 },
+        ],
+      };
+
+      mockFetch(emptyResponse(), textResponse(file), jsonResponse(content));
+
+      const api = await remarkable("");
+      const cont = await api.getContent(repHash("0"));
+      expect(cont).toEqual(expected);
+    });
+
     test("handles empty textAlignment and null pages", async () => {
       const realHash = repHash("1");
       const file = `3
