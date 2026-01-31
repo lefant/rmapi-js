@@ -926,6 +926,21 @@ type AuthedFetch = (
   init?: { body?: string | Uint8Array; headers?: Record<string, string> },
 ) => Promise<Response>;
 
+const LEGACY_TAG_TIMESTAMP = 0;
+
+function normalizeLegacyTags(loaded: unknown): void {
+  if (loaded === null || typeof loaded !== "object") return;
+  const record = loaded as { tags?: unknown };
+  const tags = record.tags;
+  if (!Array.isArray(tags)) return;
+  if (!tags.some((tag) => typeof tag === "string")) return;
+  record.tags = tags.map((tag) =>
+    typeof tag === "string"
+      ? { name: tag, timestamp: LEGACY_TAG_TIMESTAMP }
+      : tag,
+  );
+}
+
 function parseRawEntryLine(line: string): RawEntry {
   const [hash, type, id, subfiles, size] = line.split(":");
   if (
@@ -1072,6 +1087,7 @@ export class RawRemarkable implements RawRemarkableApi {
   async getContent(hash: string): Promise<Content> {
     const raw = await this.getText(hash);
     const loaded = JSON.parse(raw) as unknown;
+    normalizeLegacyTags(loaded);
 
     // Normalize empty transform object before validation
     // reMarkable API returns transform: {} for some documents, but schema requires
