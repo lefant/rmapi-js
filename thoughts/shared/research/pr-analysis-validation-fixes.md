@@ -29,7 +29,7 @@ Validation error: tags array contains strings instead of objects with {name, tim
 }
 ```
 
-**Expected Format:**
+**Proposed Normalized Format (not maintainer-preferred):**
 ```json
 {
   "tags": [
@@ -670,7 +670,7 @@ All six PRs address **validation schema mismatches** between:
 1. **Type relaxation**: `uint8()` → `uint32()`, `uint32()` → `int32()`
 2. **Nullable wrappers**: `field: type` → `field: nullable(type)`
 3. **Enum expansion**: `enumeration("a", "b")` → `enumeration("", "a", "b")`
-4. **Runtime normalization**: Transform legacy formats to current format before validation
+4. **Runtime normalization (contested)**: Some proposals transform legacy formats before validation, but maintainer feedback prefers schema/type changes over mutation in the raw layer
 
 ### Maintainer Preferences (from reviews)
 
@@ -686,10 +686,29 @@ All six PRs address **validation schema mismatches** between:
 
 ### Testing Pattern
 
-All PRs follow a consistent test pattern:
+Most PRs follow a consistent test pattern:
 1. Mock the API response with the problematic format
 2. Call the relevant API method
-3. Assert the result matches expected (normalized) format
+3. Assert the result matches the raw/accepted format
+
+Schema-only changes (e.g., PR #39, PR #41) did not add explicit tests.
+
+---
+
+## Review Findings
+
+- **Medium:** The “Testing Pattern” section claimed all PRs follow a consistent pattern, but PR #41 and PR #39 explicitly note no tests were added. This can mislead readers about coverage.
+- **Medium:** “Fix Patterns” listed runtime normalization as a general pattern, but maintainer feedback repeatedly discourages normalization in favor of schema/typing changes. This should be framed as a contested or rejected approach (at least for merged PRs).
+- **Low:** In PR #43, the “Expected Format” section read like a target output, but maintainer feedback indicates the preferred direction is representing both formats (union types), not normalizing. The label was ambiguous.
+- **Low:** The “Testing Pattern” section said assertions match a normalized format, but PR #36 asserts raw content as-is. The word “normalized” was inaccurate.
+
+## Lessons Synthesized From PRs + Feedback
+
+- The maintainer’s architectural intent is to mirror the cloud API as-is in the raw layer, even when the API is inconsistent or legacy.
+- Prefer relaxing schemas and types (nullable, wider ints, expanded enums) over runtime mutation of payloads.
+- When union-like variants exist and JTD can’t model them cleanly, use multiple parser attempts rather than ad-hoc inspection or normalization.
+- Avoid adding extra discrimination logic when schema validation already distinguishes types.
+- Tests should be minimal, descriptive, and placed in existing suites; avoid one-off files and redundant comments.
 
 ### Impact
 
